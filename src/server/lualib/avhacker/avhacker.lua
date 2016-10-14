@@ -1,29 +1,64 @@
 local _M = {}
 _M._VERSION = "1.0"
 
-local function avhacker_go()
-    ngx.log(ngx.NOTICE, "avhacker_go called")
-    ngx.say("ok")
+local function _find_parser( self, url)
+
+    for i, v in pairs( self._parser_list) do
+        local m = ngx.re.match( url, v)
+        if m then
+            return i
+        end
+    end
+
+    return nil
 end
 
-local function avhacker_init()
-    ngx.log(ngx.NOTICE, "avhacker_init called")
-    local res = ngx.location.capture("/modules/")
-    ngx.log(ngx.INFO, "body:", res.body)
-    local file_list = json_decode(res.body)
-    ngx.log(ngx.INFO, "file_list_count:", #(file_list))
-    for i, v in ipairs(file_list) do
-        ngx.log(ngx.INFO, "index:", i, " value:", v.name)
-        local m = ngx.re.match(v.name, [[(.*?)\.lua]])
-        local parser = require("avhacker/parsers/"..m[1])
-        ngx.log(ngx.INFO, "parser pattern:", parser._PATTERN)
+local function _error( code )
+
+end
+
+local function _go( self )
+
+    local args = ngx.req.get_uri_args()
+    local url = args.url
+
+    if not url then
+        ngx.log( ngx.INFO, "url not exist")
+        return _error( -1)
+    end
+    
+    local parser_name = _find_parser( self, url)
+    if not parser_name then
+        ngx.log( ngx.INFO, "paser not exist")
+        return _error( -1)
+    end
+
+    local parser = require( "avhacker/parsers/"..parser_name)
+    if not parser then
+        ngx.log( ngx.INFO, "can't load parser")
+        return _error( -1)
+    end
+
+    return parser.parse( args.url );
+end
+
+local function _init( self )
+
+    self._parser_list = { }
+    --  获取解析模块列表，并进行注册
+    local res = ngx.location.capture( "/modules/")
+    local file_list = json_decode( res.body)
+    for i, v in ipairs( file_list) do
+        local m = ngx.re.match( v.name, [[(.*?)\.lua]])
+        local parser = require( "avhacker/parsers/"..m[1])
+        self._parser_list[m[1]] = parser._PATTERN
     end
 end
 
-_M.go = function()
-    avhacker_init()
-    _M.go = avhacker_go
-    _M.go();
+function _M:go( )
+    _init( self)
+    _M.go = _go
+    _M.go( self);
 end
 
 return _M
