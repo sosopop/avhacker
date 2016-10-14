@@ -18,6 +18,7 @@ local function _error( code )
 end
 
 local function _go( self )
+    ngx.log( ngx.INFO, "avhacker go")
 
     local args = ngx.req.get_uri_args()
     local url = args.url
@@ -56,6 +57,7 @@ local function _init( self )
 end
 
 function _M:go( )
+    ngx.log( ngx.INFO, "avhacker init")
     _init( self)
     _M.go = _go
     _M.go( self);
