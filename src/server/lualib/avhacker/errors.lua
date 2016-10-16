@@ -18,4 +18,7 @@ _M.EM[_M.EC.PROV_NOT_EXIST] = [[Provider not exist]]
 _M.EC.PROV_LOAD_FAILED = -4
 _M.EM[_M.EC.PROV_LOAD_FAILED] = [[Provider load failed]]
 
+_M.EC.PARSE_FAILED = -5
+_M.EM[_M.EC.PARSE_FAILED] = [[Parse failed]]
+
 return _M
