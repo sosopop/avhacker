@@ -18,56 +18,45 @@ function _M:handle ( url)
 end
 
 function _M:parse ( url, opt )
-    local content = web_fetch( url, { 
-        headers = {
-            ["Accept-Encoding"] = "gzip"
-        }
-    })
+    local content = web_fetch( url )
     if #content == 0 then
         return build_result( EC.PARSE_FAILED)
     end
-    --self.result
-    --local m = ngx.re.match( content, [[h1\s+?title="(.+?)"]], "o")
-    local ffi = require("ffi")
-ffi.cdef[[
-unsigned long compressBound(unsigned long sourceLen);
-int compress2(uint8_t *dest, unsigned long *destLen,
-	      const uint8_t *source, unsigned long sourceLen, int level);
-int uncompress(uint8_t *dest, unsigned long *destLen,
-	       const uint8_t *source, unsigned long sourceLen);
-]]
-local zlib = ffi.load(ffi.os == "Windows" and "zlib1" or "z")
+    --bilibili不管3721都给你压缩的数据，这里需要用gz解压
+    content = gz_decompress(content);
 
-local function reader(s)
-    local done
-    return function()
-        if done then return end
-        done = true
-        return s
-    end
-end
-
-local function writer()
-    local t = {}
-    return function(data, sz)
-        if not data then return table.concat(t) end
-        t[#t + 1] = ffi.string(data, sz)
-    end
-end
-
-if content then
-    local write = writer()
-    zlib.inflate(reader(body), write, nil, "gzip")
-    content = write()
-end
-
--- Simple test code.
-        ngx.say(content)
-    local m = ngx.re.match( content, [[\d+]], "o")
+    local m = ngx.re.match( content, [[h1 title="(.+?)"]], "o")
     if not m then
         return build_result( EC.PARSE_FAILED)
     end
     self.result.title = m[1]
+    m = ngx.re.match( content, [[cid=(\d+)]], "o")
+    if not m then
+        return build_result( EC.PARSE_FAILED)
+    end
+    self.result.id = m[1]
+
+    --匹配Json数据
+    local jsonUrl = "http://interface.bilibili.com/playurl?platform=bilihelper&appkey=95acd7f6cc3392f3&cid="..self.result.id.."&otype=json&type=mp4";
+    content = web_fetch( jsonUrl )
+    if #content == 0 then
+        return build_result( EC.PARSE_FAILED)
+    end
+    local json_root = cjson.decode(content);
+    if not json_root then
+        return build_result( EC.PARSE_FAILED)
+    end
+    self.result.timelength = json_root.timelength
+    self.result.streams = {{
+        quality = "HD",
+        type = "MP4",
+        segs = {{
+            url = json_root.durl[1].url,
+            timeLength = json_root.durl[1].length,
+            fileSize = 0
+        }}
+    }}
+
     return build_result( EC.OK, self.result )
 end
 

@@ -3,6 +3,8 @@ cjson = require("cjson.safe")
 http = require("resty.http")
 --  加载主程序
 avhacker = require("avhacker.main")
+ffi = require("ffi")
+
 --  加载错误码
 local errors = require("avhacker.errors")
 --  错误码
@@ -55,4 +57,28 @@ function web_fetch( url, params)
         return ""
     end
     return res.body
+end
+
+local function gz_reader(s)
+    local done
+    return function()
+        if done then return end
+        done = true
+        return s
+    end
+end
+
+local function gz_writer()
+    local t = {}
+    return function(data, sz)
+        if not data then return table.concat(t) end
+        t[#t+1] = ffi.string(data, sz)
+    end
+end
+
+function gz_decompress( content)
+    local zlib = require "zlib"
+	local write = gz_writer()
+	zlib.inflate(gz_reader(content), write, nil, "gzip")
+    return write()
 end
