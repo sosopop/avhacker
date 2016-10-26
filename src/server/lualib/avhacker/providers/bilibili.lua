@@ -3,7 +3,6 @@ _M._VERSION = "1.0"
 
 function _M:new ( )
     local context = {
-        id = "",
         result = {}
     }
     return setmetatable( context, { __index = _M } )
@@ -29,15 +28,18 @@ function _M:parse ( url, opt )
     if not m then
         return build_result( EC.PARSE_FAILED)
     end
-    self.result.title = m[1]
+
     m = ngx.re.match( content, [[cid=(\d+)]], "o")
     if not m then
         return build_result( EC.PARSE_FAILED)
     end
-    self.result.id = m[1]
 
+    return self:parse_id( m[1], opt);
+end
+
+function _M:parse_id ( id, opt )
     --匹配Json数据
-    local jsonUrl = "http://interface.bilibili.com/playurl?platform=bilihelper&appkey=95acd7f6cc3392f3&cid="..self.result.id.."&otype=json&type=mp4";
+    local jsonUrl = "http://interface.bilibili.com/playurl?platform=bilihelper&appkey=95acd7f6cc3392f3&cid=" .. id .. "&otype=json&type=mp4";
     content = web_fetch( jsonUrl )
     if #content == 0 then
         return build_result( EC.PARSE_FAILED)
@@ -58,10 +60,6 @@ function _M:parse ( url, opt )
     }}
 
     return build_result( EC.OK, self.result )
-end
-
-function _M:parse_id ( id, opt )
-    output_json_result( EC.OK)
 end
 
 return _M

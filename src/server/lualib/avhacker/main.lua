@@ -36,7 +36,10 @@ local function _go( self )
             if not provider then
                 return output_json_result( EC.PROV_LOAD_FAILED)
             end
-            local pro_obj = provider:new()
+            local prov_obj = provider:new()
+            if not prov_obj then
+                return output_json_result( EC.PROV_LOAD_FAILED)
+            end
             local result = prov_obj:parse_id( id );
             if not result then
                 return output_json_result( EC.PARSE_FAILED)
